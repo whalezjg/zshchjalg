@@ -160,11 +160,22 @@ DB_DATASET_TABLE = os.getenv("DB_DATASET_TABLE", "fcc_dataset_row")
 
 
 def load_dataset_from_db(dataset_id):
-    """按 dataset_id 从 MySQL 数据集明细表读取样本，返回 DataFrame（列名为英文 key）"""
+    """
+    按 dataset_id 从 MySQL 数据集明细表读取样本，返回 DataFrame（列名为英文 key）
+
+    dataset_id = 0 表示不按数据集过滤，读取整张表的全部行。
+    """
     import pymysql
 
-    sql = (f"SELECT * FROM `{DB_DATASET_TABLE}` "
-           f"WHERE dataset_id = %s ORDER BY sample_shift, id")
+    dataset_id = int(dataset_id)
+    if dataset_id == 0:
+        sql = f"SELECT * FROM `{DB_DATASET_TABLE}` ORDER BY sample_shift, id"
+        params = None
+    else:
+        sql = (f"SELECT * FROM `{DB_DATASET_TABLE}` "
+               f"WHERE dataset_id = %s ORDER BY sample_shift, id")
+        params = (dataset_id,)
+
     try:
         conn = pymysql.connect(cursorclass=pymysql.cursors.DictCursor, **DB_CONFIG)
     except Exception as e:
@@ -173,12 +184,14 @@ def load_dataset_from_db(dataset_id):
         ) from e
     try:
         with conn.cursor() as cur:
-            cur.execute(sql, (int(dataset_id),))
+            cur.execute(sql, params)
             rows = cur.fetchall()
     finally:
         conn.close()
 
     if not rows:
+        if dataset_id == 0:
+            raise ValueError(f"no rows in `{DB_DATASET_TABLE}`")
         raise ValueError(f"dataset_id={dataset_id} has no rows in `{DB_DATASET_TABLE}`")
     return pd.DataFrame(rows)
 
@@ -229,6 +242,7 @@ def read_dataframe(path):
     """
     数据来源支持两种:
         - dataset_id: int / 纯数字字符串 / 'dataset:1' → 查 MySQL fcc_dataset_row
+          其中 dataset_id=0 表示读取整张表的全部行（不按数据集过滤）
         - 文件路径: .xlsx / .csv（兼容原有本地文件方式）
     """
     if is_dataset_ref(path):

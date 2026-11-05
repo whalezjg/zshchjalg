@@ -92,7 +92,7 @@ def _resolve_data_source(body):
     """
     统一从数据库取数：忽略入参中的 data_path（前端仍传路径，此处不校验其是否存在）。
     优先级:
-        1. body.dataset_id
+        1. body.dataset_id（传 0 表示不按数据集过滤，读取表中全部行）
         2. 环境变量 DEFAULT_DATASET_ID
         3. 表中最大的 dataset_id
     返回 int(dataset_id)。
