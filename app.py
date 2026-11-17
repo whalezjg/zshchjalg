@@ -24,6 +24,7 @@ from services.trainer import train
 from services.predictor import predict
 from services.correlation import correlation_analysis
 from services.optimizer import optimize
+from services.attribution import analyze as rootcause_analyze
 from services.log_util import setup_logging, brief
 
 log = setup_logging()
@@ -208,6 +209,46 @@ def api_optsearch():
         return _ok(result, code=200)
     except Exception as e:
         return _err(e, code=-1)
+
+
+# ============================================================
+# 5. 根因分析接口
+#   features: 10 个模型特征  target_size: 标准粒径
+#   observed_size: 可选实测值  reference: auto / {values} / {product}
+#   返回: 偏差三层拆解 + 参数贡献排序 + 共线分组 + 反事实建议
+# ============================================================
+@app.route("/rootcause", methods=["POST"])
+def api_rootcause():
+    try:
+        body = _get_json()
+
+        model_id = body.get("model_id") or _latest_model_id()
+        if not model_id:
+            raise ValueError("no trained model, please call /train first")
+
+        if body.get("target_size") is None:
+            raise ValueError("missing target_size")
+        target_size = float(body["target_size"])
+
+        raw = _get_feature_map(body)
+        features = {k: raw[k] for k in MODEL_KEYS if k in raw}
+        if not features:
+            raise ValueError("missing features")
+
+        observed = body.get("observed_size")
+        result = rootcause_analyze(
+            model_id=model_id,
+            features=features,
+            target_size=target_size,
+            observed_size=float(observed) if observed is not None else None,
+            reference=body.get("reference"),
+            methods=body.get("methods"),
+            top_k=int(body.get("top_k", 5)),
+            dataset_id=body.get("dataset_id"),
+        )
+        return _ok(result)
+    except Exception as e:
+        return _err(e)
 
 
 def _latest_model_id():
