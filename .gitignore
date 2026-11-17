@@ -9,7 +9,7 @@
 *.pdf
 *.txt
 *.md
-!docs/**/*.md
+!/接口文档.md
 *.pyc
 *.pyo
 *.pyd
