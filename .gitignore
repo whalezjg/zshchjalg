@@ -9,6 +9,7 @@
 *.pdf
 *.txt
 *.md
+!docs/**/*.md
 *.pyc
 *.pyo
 *.pyd
